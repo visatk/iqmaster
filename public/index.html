@@ -44,6 +44,13 @@
             padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom) 16px;
         }
 
+        #particles-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+
         .glass {
             background: var(--glass-bg);
             backdrop-filter: blur(20px);
@@ -369,11 +376,41 @@
             font-weight: 500;
             color: var(--text-muted);
             padding: 0 16px;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
         }
+
+        .subscore-row {
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .subscore-label {
+            display: flex; justify-content: space-between;
+            font-size: 0.9rem; font-weight: 700; color: var(--text-main);
+            text-transform: capitalize;
+        }
+        .subscore-track {
+            height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px;
+            overflow: hidden; position: relative;
+        }
+        .subscore-fill {
+            height: 100%; background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+            width: 0%; transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .review-node {
+            background: rgba(255,255,255,0.03);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            border-left: 4px solid #2ed573;
+        }
+        .review-node.incorrect { border-left-color: #ff4757; }
+        .review-q { font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; }
+        .review-a { font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; }
+        .review-a span.correct { color: #2ed573; font-weight: bold; }
+        .review-a span.wrong { color: #ff4757; font-weight: bold; }
     </style>
 </head>
 <body>
+    <canvas id="particles-bg"></canvas>
 
     <!-- Context Module: Dashboard Arena -->
     <div id="view-dashboard" class="view active">
@@ -385,7 +422,7 @@
         <div class="profile-card glass">
             <div>
                 <div id="user-name" style="font-weight: 800; font-size: 1.25rem;">...</div>
-                <div id="user-meta" style="color: var(--text-muted); font-size: 0.85rem; margin-top: 6px; font-weight: 500;">0 Quizzes Completed</div>
+                <div id="user-meta" style="color: var(--text-muted); font-size: 0.85rem; margin-top: 6px; font-weight: 500;">0 Quizzes | <span style="color:#ff9f43; font-weight:800;">🔥 0 Day Streak</span></div>
             </div>
             <div class="score-badge">
                 <div id="user-iq" class="score-val">-</div>
@@ -431,6 +468,20 @@
         <div style="text-align: center;">
             <p id="result-summary-text" class="diagnosis-text"></p>
         </div>
+
+        <div id="cognitive-profile" class="glass" style="border-radius: var(--radius-xl); padding: 24px; margin-bottom: 24px; text-align: left;">
+            <div class="panel-title" style="margin-bottom: 16px;">Cognitive Breakdown</div>
+            <div id="subscore-container" style="display:flex; flex-direction:column; gap: 12px;"></div>
+        </div>
+
+        <div id="review-panel" class="glass" style="border-radius: var(--radius-xl); padding: 24px; margin-bottom: 24px; text-align: left; display: none;">
+            <div class="panel-title" style="margin-bottom: 16px;">Response Analysis</div>
+            <div id="review-container" style="display:flex; flex-direction:column; gap: 16px;"></div>
+        </div>
+
+        <button id="btn-share-score" class="btn" style="margin-bottom: 12px; background: linear-gradient(135deg, #1fa2ff, #12d8fa, #a6ffcb); color: #050a14; box-shadow: 0 8px 20px rgba(18, 216, 250, 0.25);">
+            🚀 SHARE SCORE
+        </button>
     </div>
 
     <script>
@@ -439,6 +490,69 @@
         tg.expand();
         tg.setHeaderColor('#050a14');
         tg.setBackgroundColor('#050a14');
+
+        function getIqTitle(iq) {
+            if (!iq || iq === '-') return 'Unranked';
+            if (iq < 90) return '🥉 Novice';
+            if (iq < 111) return '🥈 Thinker';
+            if (iq < 130) return '🥇 Scholar';
+            if (iq < 145) return '⚡ Prodigy';
+            return '🌌 Genius';
+        }
+
+        // Particle Engine
+        const canvas = document.getElementById('particles-bg');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 0.4;
+                this.vy = (Math.random() - 0.5) * 0.4;
+                this.radius = Math.random() * 1.5 + 0.5;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 242, 254, 0.4)';
+                ctx.fill();
+            }
+        }
+        for (let i = 0; i < 35; i++) particles.push(new Particle());
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => { p.update(); p.draw(); });
+            ctx.beginPath();
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = dx * dx + dy * dy;
+                    if (dist < 12000) {
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                    }
+                }
+            }
+            ctx.strokeStyle = 'rgba(0, 242, 254, 0.05)';
+            ctx.stroke();
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
 
         // State Architecture Storage Engine
         let appState = {
@@ -507,7 +621,7 @@
                 appState.user = user;
 
                 document.getElementById('user-name').textContent = user.first_name;
-                document.getElementById('user-meta').textContent = `${user.total_quizzes || 0} Quizzes Completed`;
+                document.getElementById('user-meta').innerHTML = `<span style="color:var(--accent-start); font-weight:800;">${getIqTitle(user.best_iq)}</span> • ${user.total_quizzes || 0} Quizzes | <span style="color:#ff9f43; font-weight:800;">🔥 ${user.streak_count || 0}</span>`;
                 document.getElementById('user-iq').textContent = user.best_iq || '-';
 
                 await fetchLeaderboardStandings();
@@ -533,7 +647,10 @@
                     el.className = 'leaderboard-row';
                     el.innerHTML = `
                         <span class="rank">${i + 1}</span>
-                        <span class="name">${escapeHtml(row.first_name)}</span>
+                        <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                            <span class="name">${escapeHtml(row.first_name)}</span>
+                            <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">${getIqTitle(row.best_iq)}</span>
+                        </div>
                         <span class="iq-tag">IQ ${row.best_iq}</span>
                     `;
                     target.appendChild(el);
@@ -687,6 +804,61 @@
 
                 document.getElementById('result-summary-text').textContent = diagnosis;
                 if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+
+                // Render Cognitive Sub-Scores
+                const subTarget = document.getElementById('subscore-container');
+                subTarget.innerHTML = '';
+                for (const [cat, perc] of Object.entries(summary.subScores || {})) {
+                    const row = document.createElement('div');
+                    row.className = 'subscore-row';
+                    row.innerHTML = `
+                        <div class="subscore-label"><span>${cat}</span><span>${perc}%</span></div>
+                        <div class="subscore-track"><div class="subscore-fill" style="width: 0%"></div></div>
+                    `;
+                    subTarget.appendChild(row);
+
+                    // Animate filling
+                    setTimeout(() => {
+                        const fill = row.querySelector('.subscore-fill');
+                        if(fill) fill.style.width = `${perc}%`;
+                    }, 400);
+                }
+
+                // Render Review Panel
+                document.getElementById('review-panel').style.display = 'block';
+                const reviewContainer = document.getElementById('review-container');
+                reviewContainer.innerHTML = '';
+                
+                appState.questions.forEach((q, idx) => {
+                    const evalData = summary.breakdown[q.id];
+                    const selectedIdx = appState.answers[q.id];
+                    
+                    const node = document.createElement('div');
+                    node.className = `review-node ${evalData.correct ? 'correct' : 'incorrect'}`;
+                    
+                    const qText = `<div class="review-q">${idx + 1}. ${q.question_text}</div>`;
+                    
+                    let aText = '';
+                    if (evalData.correct) {
+                        aText = `<div class="review-a">Answered: <span class="correct">${q.options[selectedIdx]}</span></div>`;
+                    } else {
+                        const userAns = selectedIdx !== undefined ? q.options[selectedIdx] : "Skipped";
+                        const correctAns = q.options[evalData.solution];
+                        aText = `<div class="review-a">Your Answer: <span class="wrong">${userAns}</span><br>Correct: <span class="correct">${correctAns}</span></div>`;
+                    }
+                    
+                    node.innerHTML = qText + aText;
+                    reviewContainer.appendChild(node);
+                });
+
+                // Bind Share Action
+                document.getElementById('btn-share-score').onclick = () => {
+                    const shareText = `🧠 I just scored ${targetIq} IQ on IQ Master! My rank is ${getIqTitle(targetIq)}!\n🔥 Streak: ${summary.streak || 1} Days\n\nCan you beat my cognitive evaluation? Play here:`;
+                    const botUrl = `https://t.me/your_bot_username`; // TODO: Replace with actual bot handle
+                    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent(shareText)}`;
+                    tg.openTelegramLink(shareUrl);
+                };
+
             } catch {
                 alert("Network connectivity interruption dropped evaluation token.");
                 returnToHub();

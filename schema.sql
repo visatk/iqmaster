@@ -12,9 +12,14 @@ CREATE TABLE users (
     language_code TEXT,
     best_iq INTEGER DEFAULT 0,
     total_quizzes INTEGER DEFAULT 0,
+    streak_count INTEGER DEFAULT 0,
+    last_played_date TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- OPTIMIZATION: Index to ensure global leaderboard queries scale gracefully
+CREATE INDEX IF NOT EXISTS idx_users_best_iq ON users(best_iq DESC);
 
 -- Question matrix containing diverse cognitive categories
 CREATE TABLE questions (

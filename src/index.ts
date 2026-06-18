@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 type Bindings = {
 	DB: D1Database;
 	TELEGRAM_BOT_TOKEN: string;
+	TELEGRAM_WEBHOOK_SECRET: string;
 };
 
 type Variables = {
@@ -60,9 +61,28 @@ async function verifyTelegramSignature(initData: string, botToken: string): Prom
 	}
 }
 
+// Global System Health Validation
+app.use('*', async (c, next) => {
+	if (!c.env.TELEGRAM_BOT_TOKEN) return c.json({ error: "Critical: TELEGRAM_BOT_TOKEN is unassigned." }, 500);
+	if (!c.env.TELEGRAM_WEBHOOK_SECRET) return c.json({ error: "Critical: TELEGRAM_WEBHOOK_SECRET is unassigned." }, 500);
+	await next();
+});
+
 // POST /webhook - Handles incoming Telegram Bot updates
 app.post('/webhook', async (c) => {
-	const update = await c.req.json<any>();
+	// 1. Verify Request Origin Cryptographically
+	const secretToken = c.req.header('X-Telegram-Bot-Api-Secret-Token');
+	if (!secretToken || secretToken !== c.env.TELEGRAM_WEBHOOK_SECRET) {
+		return c.json({ error: 'Unauthorized origin detected.' }, 401);
+	}
+
+	// 2. Defensive JSON Parsing
+	let update: any;
+	try {
+		update = await c.req.json();
+	} catch {
+		return c.json({ error: 'Malformed JSON schema.' }, 400);
+	}
 	
 	if (update.message && update.message.text) {
 		const text = update.message.text;
@@ -180,7 +200,18 @@ app.post('/api/quiz/start', async (c) => {
 // POST /api/quiz/submit - Evaluates answers server-side within the stateful session time box
 app.post('/api/quiz/submit', async (c) => {
 	const tgUser = c.get('tgUser');
-	const payload = await c.req.json<{ attemptId: string; answers: Record<number, number> }>();
+	
+	let payload: { attemptId?: string; answers?: Record<number, number> };
+	try {
+		payload = await c.req.json();
+	} catch {
+		return c.json({ error: 'Malformed request payload' }, 400);
+	}
+
+	if (!payload || typeof payload !== 'object' || !payload.attemptId || !payload.answers || typeof payload.answers !== 'object') {
+		return c.json({ error: "Invalid payload schema" }, 400);
+	}
+
 	const now = Date.now();
 
 	const attempt = await c.env.DB.prepare('SELECT * FROM quiz_attempts WHERE id = ? AND tg_id = ?')
@@ -195,7 +226,7 @@ app.post('/api/quiz/submit', async (c) => {
 	const placeholders = activeQuestionIds.map(() => '?').join(',');
 	
 	const truthSet = await c.env.DB.prepare(
-		`SELECT id, correct_index, difficulty FROM questions WHERE id IN (${placeholders})`
+		`SELECT id, correct_index, difficulty, category FROM questions WHERE id IN (${placeholders})`
 	)
 		.bind(...activeQuestionIds)
 		.all();
@@ -203,6 +234,13 @@ app.post('/api/quiz/submit', async (c) => {
 	let earnedPoints = 0;
 	let aggregatePossiblePoints = 0;
 	const evaluationMatrix: Record<number, { correct: boolean; solution: number }> = {};
+	
+	const categoryMetrics: Record<string, { earned: number; possible: number }> = {
+		numerical: { earned: 0, possible: 0 },
+		logic: { earned: 0, possible: 0 },
+		spatial: { earned: 0, possible: 0 },
+		verbal: { earned: 0, possible: 0 }
+	};
 
 	truthSet.results.forEach((q: any) => {
 		// Exponential difficulty weighting: 10, 20, 40, 80, 160
@@ -212,8 +250,15 @@ app.post('/api/quiz/submit', async (c) => {
 		const selectedIndex = payload.answers[q.id];
 		const isCorrect = selectedIndex !== undefined && selectedIndex === q.correct_index;
 		
+		if (categoryMetrics[q.category]) {
+			categoryMetrics[q.category].possible += weight;
+		}
+
 		if (isCorrect) {
 			earnedPoints += weight;
+			if (categoryMetrics[q.category]) {
+				categoryMetrics[q.category].earned += weight;
+			}
 		}
 
 		evaluationMatrix[q.id] = {
@@ -223,23 +268,62 @@ app.post('/api/quiz/submit', async (c) => {
 	});
 
 	// Standard psychometric computation scale: baseline 70, max ~150
-	const accuracyRatio = earnedPoints / (aggregatePossiblePoints || 1);
-	const computedIq = Math.round(70 + (accuracyRatio * 80));
+	const accuracyRatio = Math.min(Math.max(earnedPoints / (aggregatePossiblePoints || 1), 0), 1);
+	
+	// Speed Bonus: Reward fast completion (under 3 minutes) if accuracy is high (>60%)
+	const timeTakenMs = now - attempt.started_at;
+	if (timeTakenMs < 0) {
+		return c.json({ error: "Temporal anomaly detected. Potential execution manipulation." }, 400);
+	}
+
+	let speedBonus = 0;
+	if (accuracyRatio > 0.6 && timeTakenMs < 180000) {
+		const speedFactor = (180000 - timeTakenMs) / 180000;
+		speedBonus = Math.round(speedFactor * 10); // Up to 10 bonus IQ points
+	}
+
+	const computedIq = Math.round(70 + (accuracyRatio * 80)) + speedBonus;
+
+	const subScores: Record<string, number> = {};
+	for (const cat in categoryMetrics) {
+		const m = categoryMetrics[cat];
+		subScores[cat] = m.possible > 0 ? Math.round((m.earned / m.possible) * 100) : 0;
+	}
+
+	// Streak Calculation
+	const userRec = await c.env.DB.prepare('SELECT streak_count, last_played_date FROM users WHERE tg_id = ?')
+		.bind(tgUser.id.toString())
+		.first() as any;
+
+	let streakCount = userRec?.streak_count || 0;
+	const lastPlayed = userRec?.last_played_date;
+	const todayStr = new Date(now).toISOString().split('T')[0];
+	const yesterdayStr = new Date(now - 86400000).toISOString().split('T')[0];
+
+	if (lastPlayed !== todayStr) {
+		if (lastPlayed === yesterdayStr) {
+			streakCount++;
+		} else {
+			streakCount = 1;
+		}
+	}
 
 	// Save verification record atomic modifications asynchronously
 	c.executionCtx.waitUntil(
 		c.env.DB.batch([
 			c.env.DB.prepare('UPDATE quiz_attempts SET answers = ?, score = ?, is_completed = 1 WHERE id = ?')
 				.bind(JSON.stringify(payload.answers), computedIq, payload.attemptId),
-			c.env.DB.prepare('UPDATE users SET total_quizzes = total_quizzes + 1, best_iq = MAX(best_iq, ?), updated_at = CURRENT_TIMESTAMP WHERE tg_id = ?')
-				.bind(computedIq, tgUser.id.toString())
+			c.env.DB.prepare('UPDATE users SET total_quizzes = total_quizzes + 1, best_iq = MAX(best_iq, ?), streak_count = ?, last_played_date = ?, updated_at = CURRENT_TIMESTAMP WHERE tg_id = ?')
+				.bind(computedIq, streakCount, todayStr, tgUser.id.toString())
 		])
 	);
 
 	return c.json({
 		iq: computedIq,
 		pointsEarned: earnedPoints,
-		breakdown: evaluationMatrix
+		breakdown: evaluationMatrix,
+		subScores,
+		streak: streakCount
 	});
 });
 
