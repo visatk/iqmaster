@@ -3,22 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>IQ Master — Psychometric Intelligence Arena</title>
+    <title>IQ Master — Elite Psychometric Evaluation</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: var(--tg-theme-bg-color, #0f172a);
-            --secondary-bg: var(--tg-theme-secondary-bg-color, #1e293b);
-            --accent: var(--tg-theme-button-color, #38bdf8);
-            --accent-text: var(--tg-theme-button-text-color, #0f172a);
-            --text: var(--tg-theme-text-color, #f8fafc);
-            --hint: var(--tg-theme-hint-color, #94a3b8);
-            --surface: #1e293b;
-            --border: #334155;
-            --success: #10b981;
-            --radius-xl: 20px;
-            --radius-lg: 14px;
-            --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --bg-color: #050a14;
+            --glass-bg: rgba(20, 30, 48, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --accent-start: #00f2fe;
+            --accent-end: #4facfe;
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+            --radius-xl: 24px;
+            --radius-lg: 16px;
+            --font: 'Outfit', sans-serif;
         }
 
         * {
@@ -31,13 +32,24 @@
 
         body {
             font-family: var(--font);
-            background-color: var(--bg);
-            color: var(--text);
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(0, 242, 254, 0.08), transparent 30%),
+                radial-gradient(circle at 85% 30%, rgba(178, 36, 239, 0.08), transparent 30%);
+            color: var(--text-main);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
             padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom) 16px;
+        }
+
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
         }
 
         .view {
@@ -47,245 +59,317 @@
             width: 100%;
             max-width: 480px;
             margin: 0 auto;
-            animation: viewFade 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: viewFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .view.active {
-            display: flex;
+        .view.active { display: flex; }
+
+        @keyframes viewFadeIn {
+            from { opacity: 0; transform: translateY(15px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        @keyframes viewFade {
-            from { opacity: 0; transform: scale(0.98) translateY(4px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-
-        /* Header Component Structure */
         header {
-            padding: 24px 0 16px 0;
+            padding: 30px 0 24px 0;
             text-align: center;
         }
 
-        .profile-container {
-            background: var(--secondary-bg);
-            border: 1px solid var(--border);
+        header h1 {
+            font-size: 2.2rem;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--text-main) 0%, var(--text-muted) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        header p {
+            color: var(--accent-start);
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            margin-top: 6px;
+        }
+
+        .profile-card {
             border-radius: var(--radius-xl);
-            padding: 20px;
-            margin-bottom: 16px;
+            padding: 24px;
+            margin-bottom: 28px;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .profile-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-start), transparent);
+            opacity: 0.5;
         }
 
         .score-badge {
-            background: linear-gradient(135deg, var(--accent), #0284c7);
-            color: var(--accent-text);
-            padding: 12px 20px;
+            background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+            color: #050a14;
+            padding: 16px 24px;
             border-radius: var(--radius-lg);
             text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);
+            transform: perspective(400px) rotateX(0deg);
+            transition: transform 0.3s;
+        }
+        .score-badge:hover {
+            transform: perspective(400px) rotateX(10deg) translateY(-2px);
         }
 
-        .score-val {
-            font-size: 1.75rem;
-            font-weight: 800;
-            line-height: 1;
-        }
+        .score-val { font-size: 2.2rem; font-weight: 900; line-height: 1; }
+        .score-lbl { font-size: 0.75rem; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; margin-top: 4px; opacity: 0.9; }
 
-        .score-lbl {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            font-weight: 600;
-            letter-spacing: 0.05em;
-            opacity: 0.9;
-        }
-
-        /* Leaderboard Component Structure */
         .panel-title {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             text-transform: uppercase;
-            color: var(--hint);
-            letter-spacing: 0.075em;
-            margin-bottom: 8px;
-            padding-left: 4px;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+            margin-bottom: 12px;
+            padding-left: 8px;
             font-weight: 700;
         }
 
         .leaderboard-card {
-            background: var(--secondary-bg);
-            border: 1px solid var(--border);
             border-radius: var(--radius-xl);
             overflow: hidden;
             flex: 1;
-            margin-bottom: 24px;
+            margin-bottom: 32px;
         }
 
         .leaderboard-row {
             display: flex;
             align-items: center;
-            padding: 14px 18px;
-            border-bottom: 1px solid var(--border);
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            transition: background 0.2s;
         }
-
-        .leaderboard-row:last-child {
-            border-bottom: none;
-        }
+        .leaderboard-row:hover { background: rgba(255,255,255,0.03); }
+        .leaderboard-row:last-child { border-bottom: none; }
 
         .rank {
-            font-weight: 800;
-            width: 28px;
-            color: var(--hint);
+            font-weight: 900;
+            font-size: 1.1rem;
+            width: 32px;
+            color: var(--text-muted);
         }
 
-        .leaderboard-row:nth-child(1) .rank { color: #fbbf24; }
-        .leaderboard-row:nth-child(2) .rank { color: #cbd5e1; }
-        .leaderboard-row:nth-child(3) .rank { color: #b45309; }
+        .leaderboard-row:nth-child(1) .rank { color: #FFD700; text-shadow: 0 0 12px rgba(255, 215, 0, 0.6); }
+        .leaderboard-row:nth-child(2) .rank { color: #E3E4E5; text-shadow: 0 0 12px rgba(227, 228, 229, 0.6); }
+        .leaderboard-row:nth-child(3) .rank { color: #CD7F32; text-shadow: 0 0 12px rgba(205, 127, 50, 0.6); }
 
-        .name {
-            flex: 1;
-            font-weight: 600;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+        .name { flex: 1; font-weight: 600; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         .iq-tag {
-            font-weight: 700;
-            background: rgba(56, 189, 248, 0.15);
-            color: var(--accent);
-            padding: 4px 10px;
+            font-weight: 800;
+            background: rgba(0, 242, 254, 0.1);
+            color: var(--accent-start);
+            padding: 6px 12px;
             border-radius: 8px;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
+            border: 1px solid rgba(0, 242, 254, 0.2);
+            box-shadow: inset 0 0 10px rgba(0, 242, 254, 0.05);
         }
 
-        /* Action Component Elements */
         .btn {
-            background: var(--accent);
-            color: var(--accent-text);
+            background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+            color: #050a14;
             border: none;
-            padding: 16px 24px;
+            padding: 18px 24px;
             border-radius: var(--radius-lg);
-            font-size: 1rem;
-            font-weight: 700;
+            font-size: 1.1rem;
+            font-weight: 800;
+            font-family: var(--font);
             cursor: pointer;
             width: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            transition: transform 0.1s ease;
+            gap: 10px;
+            box-shadow: 0 8px 20px rgba(0, 242, 254, 0.25);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
         }
-
-        .btn:active {
-            transform: scale(0.98);
+        .btn::after {
+            content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transform: skewX(-20deg);
+            transition: 0.5s;
         }
+        .btn:hover::after { left: 150%; }
+        .btn:active { transform: scale(0.96); box-shadow: 0 4px 10px rgba(0, 242, 254, 0.2); }
 
-        /* Quiz Layout Context */
+        /* Quiz Layout */
         .quiz-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 24px;
+            margin: 20px 0 30px;
+            padding: 0 8px;
         }
 
         .progress-track {
-            height: 6px;
-            background: var(--secondary-bg);
-            border-radius: 3px;
+            height: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
             flex: 1;
-            margin: 0 16px;
+            margin: 0 20px;
             position: relative;
             overflow: hidden;
         }
 
         .progress-fill {
             position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            background: var(--accent);
+            left: 0; top: 0; height: 100%;
+            background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
             width: 0%;
-            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
         }
 
         .timer-node {
             font-variant-numeric: tabular-nums;
-            font-weight: 700;
-            color: var(--hint);
-            background: var(--secondary-bg);
-            padding: 6px 12px;
+            font-weight: 800;
+            color: var(--accent-start);
+            background: rgba(0, 242, 254, 0.1);
+            padding: 8px 14px;
             border-radius: 20px;
-            font-size: 0.85rem;
-            border: 1px solid var(--border);
+            font-size: 0.95rem;
+            border: 1px solid rgba(0, 242, 254, 0.2);
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .timer-warning {
+            color: #ff4757;
+            background: rgba(255, 71, 87, 0.1);
+            border-color: rgba(255, 71, 87, 0.3);
+            box-shadow: 0 0 15px rgba(255, 71, 87, 0.2);
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
 
         .question-card {
-            background: var(--secondary-bg);
-            border: 1px solid var(--border);
-            padding: 24px;
+            padding: 36px 24px;
             border-radius: var(--radius-xl);
-            font-size: 1.2rem;
+            font-size: 1.35rem;
             font-weight: 600;
             line-height: 1.5;
-            margin-bottom: 20px;
-            min-height: 120px;
+            margin-bottom: 28px;
+            min-height: 160px;
             display: flex;
             align-items: center;
+            justify-content: center;
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
         }
 
         .options-grid {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 14px;
         }
 
         .option-node {
-            background: var(--secondary-bg);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 16px 20px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: var(--text-main);
+            padding: 18px 24px;
             border-radius: var(--radius-lg);
             text-align: left;
-            font-size: 1rem;
+            font-size: 1.1rem;
             font-weight: 500;
+            font-family: var(--font);
             cursor: pointer;
-            transition: all 0.15s ease;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
-
+        .option-node:hover {
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(255,255,255,0.15);
+        }
         .option-node:active {
-            background: var(--border);
-            border-color: var(--hint);
+            transform: scale(0.98);
+            background: rgba(0, 242, 254, 0.15);
+            border-color: var(--accent-start);
         }
 
-        /* Engine Metric Evaluation Layout */
+        /* Result Module */
         .result-radial {
-            margin: 40px auto;
-            width: 180px;
-            height: 180px;
+            margin: 50px auto;
+            width: 240px;
+            height: 240px;
             border-radius: 50%;
-            background: radial-gradient(var(--bg) 60%, transparent 61%), conic-gradient(var(--accent) 0%, var(--secondary-bg) 0%);
+            background: conic-gradient(var(--accent-start) 0%, rgba(255,255,255,0.05) 0%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: 0 0 40px rgba(0, 242, 254, 0.2);
+        }
+
+        .result-radial::after {
+            content: '';
+            position: absolute;
+            width: 210px;
+            height: 210px;
+            background: var(--bg-color);
+            border-radius: 50%;
+        }
+
+        .result-content {
+            position: relative;
+            z-index: 2;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
         }
 
         .result-iq {
-            font-size: 3.5rem;
+            font-size: 5rem;
             font-weight: 900;
             line-height: 1;
-            background: linear-gradient(135deg, #f8fafc, var(--accent));
+            background: linear-gradient(135deg, #ffffff, var(--accent-end));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
         }
 
         .result-label {
-            font-size: 0.75rem;
-            color: var(--hint);
+            font-size: 0.9rem;
+            color: var(--accent-start);
             text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: 0.1em;
-            margin-top: 4px;
+            font-weight: 800;
+            letter-spacing: 0.15em;
+            margin-top: 8px;
+        }
+
+        .diagnosis-text {
+            font-size: 1.15rem;
+            line-height: 1.6;
+            font-weight: 500;
+            color: var(--text-muted);
+            padding: 0 16px;
+            margin-bottom: 40px;
         }
     </style>
 </head>
@@ -294,14 +378,14 @@
     <!-- Context Module: Dashboard Arena -->
     <div id="view-dashboard" class="view active">
         <header>
-            <h1 style="font-size: 1.5rem; font-weight: 800;">IQ MASTER</h1>
-            <p style="color: var(--hint); font-size: 0.85rem; margin-top: 2px;">Psychometric Evaluation Matrix</p>
+            <h1>IQ MASTER</h1>
+            <p>Psychometric Evaluation Matrix</p>
         </header>
 
-        <div class="profile-container">
+        <div class="profile-card glass">
             <div>
-                <div id="user-name" style="font-weight: 700; font-size: 1.1rem;">...</div>
-                <div id="user-meta" style="color: var(--hint); font-size: 0.8rem; margin-top: 4px;">0 Quizzes Completed</div>
+                <div id="user-name" style="font-weight: 800; font-size: 1.25rem;">...</div>
+                <div id="user-meta" style="color: var(--text-muted); font-size: 0.85rem; margin-top: 6px; font-weight: 500;">0 Quizzes Completed</div>
             </div>
             <div class="score-badge">
                 <div id="user-iq" class="score-val">-</div>
@@ -309,45 +393,47 @@
             </div>
         </div>
 
-        <div class="panel-title">Global Standings</div>
-        <div class="leaderboard-card">
+        <div class="panel-title">Global Elite</div>
+        <div class="leaderboard-card glass">
             <div id="leaderboard-target" style="display:flex; flex-direction:column; min-height:100px;">
                 <!-- Dynamically updated pipeline items injection -->
             </div>
         </div>
 
         <button class="btn" id="action-trigger-start">
-            <svg style="width:20px; height:20px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            INITIALIZE IQ TEST
+            <svg style="width:22px; height:22px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            INITIALIZE TEST
         </button>
     </div>
 
     <!-- Context Module: Quiz Runtime Evaluation -->
     <div id="view-quiz" class="view">
         <div class="quiz-header">
-            <span id="quiz-index-tracker" style="font-weight:700; font-size:0.9rem; color:var(--hint);">1/5</span>
+            <span id="quiz-index-tracker" style="font-weight:800; font-size:1rem; color:var(--text-muted);">1/10</span>
             <div class="progress-track"><div id="quiz-progress-bar" class="progress-fill"></div></div>
-            <div id="quiz-timer" class="timer-node">05:00</div>
+            <div id="quiz-timer" class="timer-node">10:00</div>
         </div>
 
-        <div id="quiz-question" class="question-card">...</div>
+        <div id="quiz-question" class="question-card glass">...</div>
         <div id="quiz-options" class="options-grid"></div>
     </div>
 
     <!-- Context Module: Score Aggregation Metrics -->
     <div id="view-result" class="view">
         <header>
-            <h1 style="font-size: 1.5rem; font-weight: 800;">EVALUATION COMPLETE</h1>
-            <p style="color: var(--hint); font-size: 0.85rem; margin-top: 2px;">Psychometric Score Calculation Settled</p>
+            <h1 style="font-size: 2rem;">EVALUATION COMPLETE</h1>
+            <p style="letter-spacing: 0.1em;">Psychometric Engine Synchronized</p>
         </header>
 
         <div id="result-radial-node" class="result-radial">
-            <div id="result-iq-val" class="result-iq">-</div>
-            <div class="result-label">Index Ratio</div>
+            <div class="result-content">
+                <div id="result-iq-val" class="result-iq">0</div>
+                <div class="result-label">IQ Score</div>
+            </div>
         </div>
 
-        <div class="profile-container" style="justify-content: center; text-align: center; margin-bottom: 32px;">
-            <p id="result-summary-text" style="font-size: 0.95rem; line-height: 1.4; font-weight: 500;"></p>
+        <div style="text-align: center;">
+            <p id="result-summary-text" class="diagnosis-text"></p>
         </div>
 
         <button class="btn" id="action-trigger-close">
@@ -359,6 +445,8 @@
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
+        tg.setHeaderColor('#050a14');
+        tg.setBackgroundColor('#050a14');
 
         // State Architecture Storage Engine
         let appState = {
@@ -381,7 +469,6 @@
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
             
-            // Manage UI BackButton state behavior dynamically
             if (viewId === 'view-quiz') {
                 tg.BackButton.show();
             } else {
@@ -397,7 +484,6 @@
             }
         });
 
-        // Sync local user profile metrics state from backend database
         async function fetchUserMetrics() {
             try {
                 const res = await fetch('/api/me', { headers: reqHeaders });
@@ -405,7 +491,7 @@
                 appState.user = user;
 
                 document.getElementById('user-name').textContent = user.first_name;
-                document.getElementById('user-meta').textContent = `${user.total_quizzes || 0} Quizzes Settled`;
+                document.getElementById('user-meta').textContent = `${user.total_quizzes || 0} Quizzes Completed`;
                 document.getElementById('user-iq').textContent = user.best_iq || '-';
 
                 await fetchLeaderboardStandings();
@@ -414,7 +500,6 @@
             }
         }
 
-        // Fetch standings arrays and compile structural UI element trees
         async function fetchLeaderboardStandings() {
             const target = document.getElementById('leaderboard-target');
             try {
@@ -423,7 +508,7 @@
 
                 target.innerHTML = '';
                 if (list.length === 0) {
-                    target.innerHTML = `<div style="padding:24px; text-align:center; color:var(--hint); font-size:0.9rem;">No metric data registered yet.</div>`;
+                    target.innerHTML = `<div style="padding:32px; text-align:center; color:var(--text-muted); font-size:0.95rem; font-weight:500;">No elite records registered yet.</div>`;
                     return;
                 }
 
@@ -438,12 +523,16 @@
                     target.appendChild(el);
                 });
             } catch {
-                target.innerHTML = `<div style="padding:24px; text-align:center; color:var(--hint); font-size:0.9rem;">Standings unavailable.</div>`;
+                target.innerHTML = `<div style="padding:32px; text-align:center; color:var(--text-muted); font-size:0.95rem;">Standings unavailable.</div>`;
             }
         }
 
-        // Initialize state session entry configuration
         async function processQuizInitialization() {
+            const btn = document.getElementById('action-trigger-start');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'INITIALIZING...';
+            btn.style.pointerEvents = 'none';
+
             try {
                 const res = await fetch('/api/quiz/start', { method: 'POST', headers: reqHeaders });
                 if (!res.ok) throw new Error("Initialization rejected.");
@@ -461,19 +550,22 @@
                 renderActiveQuestion();
             } catch (e) {
                 alert("Failed to allocate secure execution context. Retrying.");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.style.pointerEvents = 'auto';
             }
         }
 
         function initiateCountdownTimer() {
             clearInterval(appState.timerInterval);
             const display = document.getElementById('quiz-timer');
+            display.classList.remove('timer-warning');
 
             appState.timerInterval = setInterval(() => {
                 const remaining = appState.expirationTime - Date.now();
                 if (remaining <= 0) {
                     clearInterval(appState.timerInterval);
                     processQuizSettlement();
-                    alert("Temporal session expired. Evaluating partial submissions.");
                     return;
                 }
 
@@ -481,6 +573,10 @@
                 const m = Math.floor(totalSecs / 60).toString().padStart(2, '0');
                 const s = (totalSecs % 60).toString().padStart(2, '0');
                 display.textContent = `${m}:${s}`;
+
+                if (totalSecs <= 60 && !display.classList.contains('timer-warning')) {
+                    display.classList.add('timer-warning');
+                }
             }, 1000);
         }
 
@@ -490,7 +586,13 @@
 
             document.getElementById('quiz-index-tracker').textContent = `${appState.currentIndex + 1}/${total}`;
             document.getElementById('quiz-progress-bar').style.width = `${((appState.currentIndex) / total) * 100}%`;
-            document.getElementById('quiz-question').textContent = q.question_text;
+            
+            // Re-trigger animation
+            const qCard = document.getElementById('quiz-question');
+            qCard.style.animation = 'none';
+            qCard.offsetHeight; // trigger reflow
+            qCard.style.animation = 'slideIn 0.3s ease';
+            qCard.textContent = q.question_text;
 
             const optionsTarget = document.getElementById('quiz-options');
             optionsTarget.innerHTML = '';
@@ -499,6 +601,7 @@
                 const btn = document.createElement('button');
                 btn.className = 'option-node';
                 btn.textContent = opt;
+                btn.style.animation = `slideIn 0.3s ease ${index * 0.05}s both`;
                 btn.onclick = () => registerUserSelection(q.id, index);
                 optionsTarget.appendChild(btn);
             });
@@ -529,19 +632,43 @@
                 });
 
                 const summary = await res.json();
+                switchView('view-result');
                 
-                // Conic gradient visual ring feedback setting representation
-                const percentage = Math.min(100, Math.max(0, ((summary.iq - 70) / 90) * 100));
-                document.getElementById('result-radial-node').style.background = `radial-gradient(var(--bg) 60%, transparent 61%), conic-gradient(var(--accent) ${percentage}%, var(--secondary-bg) ${percentage}%)`;
-                document.getElementById('result-iq-val').textContent = summary.iq;
+                // Animate IQ calculation ring
+                const targetIq = summary.iq;
+                let currentIq = 50; // visual start
+                const targetPerc = Math.min(100, Math.max(0, ((targetIq - 70) / 90) * 100));
+                
+                const iqEl = document.getElementById('result-iq-val');
+                const radialEl = document.getElementById('result-radial-node');
+                
+                const steps = 40;
+                const duration = 1500;
+                const increment = (targetIq - currentIq) / steps;
+                let step = 0;
+
+                const anim = setInterval(() => {
+                    step++;
+                    currentIq += increment;
+                    iqEl.textContent = Math.round(currentIq);
+                    
+                    const curPerc = Math.min(100, Math.max(0, ((currentIq - 70) / 90) * 100));
+                    radialEl.style.background = `conic-gradient(var(--accent-start) ${curPerc}%, rgba(255,255,255,0.05) ${curPerc}%)`;
+                    
+                    if (step >= steps) {
+                        clearInterval(anim);
+                        iqEl.textContent = targetIq;
+                        radialEl.style.background = `conic-gradient(var(--accent-start) ${targetPerc}%, rgba(255,255,255,0.05) ${targetPerc}%)`;
+                        radialEl.style.boxShadow = `0 0 ${40 + (targetPerc/2)}px rgba(0, 242, 254, 0.4)`;
+                    }
+                }, duration / steps);
 
                 let diagnosis = "Average computational analytical capability.";
-                if (summary.iq > 130) diagnosis = "Genius level cognitive spatial orientation capacity.";
-                else if (summary.iq > 115) diagnosis = "High superior analytical reasoning quotient.";
-                else if (summary.iq < 90) diagnosis = "Divergent process processing speed mapping index.";
+                if (summary.iq >= 130) diagnosis = "Genius level cognitive spatial orientation capacity. You possess extraordinary analytical skills.";
+                else if (summary.iq >= 115) diagnosis = "High superior analytical reasoning quotient. Exceptional problem-solving speed.";
+                else if (summary.iq < 90) diagnosis = "Divergent process mapping. Keep practicing to enhance cognitive flexibility.";
 
                 document.getElementById('result-summary-text').textContent = diagnosis;
-                switchView('view-result');
             } catch {
                 alert("Network connectivity interruption dropped evaluation token.");
                 switchView('view-dashboard');
@@ -554,14 +681,12 @@
             return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        // Action Bindings Registration Setup Block
         document.getElementById('action-trigger-start').onclick = processQuizInitialization;
         document.getElementById('action-trigger-close').onclick = () => {
             fetchUserMetrics();
             switchView('view-dashboard');
         };
 
-        // Initialize Core Lifecycles
         fetchUserMetrics();
     </script>
 </body>

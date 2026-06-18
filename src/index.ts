@@ -113,12 +113,21 @@ app.post('/api/quiz/start', async (c) => {
 	const tgUser = c.get('tgUser');
 	const attemptId = crypto.randomUUID();
 	
-	// Collect distinct questions up to targeted limit allocation
-	const { results } = await c.env.DB.prepare('SELECT id FROM questions ORDER BY RANDOM() LIMIT 5').all();
-	const questionIds = results.map((r: any) => r.id);
+	// Build a progressive 10-question matrix across difficulty tiers
+	const queries = [
+		c.env.DB.prepare('SELECT id FROM questions WHERE difficulty = 1 ORDER BY RANDOM() LIMIT 3'),
+		c.env.DB.prepare('SELECT id FROM questions WHERE difficulty = 2 ORDER BY RANDOM() LIMIT 3'),
+		c.env.DB.prepare('SELECT id FROM questions WHERE difficulty = 3 ORDER BY RANDOM() LIMIT 2'),
+		c.env.DB.prepare('SELECT id FROM questions WHERE difficulty = 4 ORDER BY RANDOM() LIMIT 1'),
+		c.env.DB.prepare('SELECT id FROM questions WHERE difficulty = 5 ORDER BY RANDOM() LIMIT 1')
+	];
+	
+	const batchedResults = await c.env.DB.batch(queries);
+	const allSelected = batchedResults.flatMap((res: any) => res.results);
+	const questionIds = allSelected.map((r: any) => r.id);
 
 	const now = Date.now();
-	const durationLimit = 5 * 60 * 1000; // Hard bounded window allocation (5 minutes)
+	const durationLimit = 10 * 60 * 1000; // Hard bounded window allocation (10 minutes for 10 questions)
 	const expiresAt = now + durationLimit;
 
 	await c.env.DB.prepare(
@@ -177,7 +186,8 @@ app.post('/api/quiz/submit', async (c) => {
 	const evaluationMatrix: Record<number, { correct: boolean; solution: number }> = {};
 
 	truthSet.results.forEach((q: any) => {
-		const weight = q.difficulty * 10;
+		// Exponential difficulty weighting: 10, 20, 40, 80, 160
+		const weight = Math.pow(2, q.difficulty - 1) * 10;
 		aggregatePossiblePoints += weight;
 		
 		const selectedIndex = payload.answers[q.id];
@@ -193,9 +203,9 @@ app.post('/api/quiz/submit', async (c) => {
 		};
 	});
 
-	// Standard psychometric computation scale: baseline 100 with standard deviation mapping
+	// Standard psychometric computation scale: baseline 70, max ~150
 	const accuracyRatio = earnedPoints / (aggregatePossiblePoints || 1);
-	const computedIq = Math.round(70 + (accuracyRatio * 90));
+	const computedIq = Math.round(70 + (accuracyRatio * 80));
 
 	// Save verification record atomic modifications
 	await c.env.DB.batch([
