@@ -1,1 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IQ Master Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        /* Modern UI/UX: Custom properties, WCAG compliant contrast, fluid sizing */
+        :root {
+            --bg-color: var(--tg-theme-bg-color, #f4f4f5);
+            --text-color: var(--tg-theme-text-color, #18181b);
+            --btn-bg: var(--tg-theme-button-color, #3b82f6);
+            --btn-text: var(--tg-theme-button-text-color, #ffffff);
+            --card-bg: var(--tg-theme-secondary-bg-color, #ffffff);
+            --radius-md: 12px;
+            --font-sans: system-ui, -apple-system, sans-serif;
+        }
 
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            text-align: center;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .screen.active { display: flex; }
+
+        h1 { font-size: 1.5rem; margin-bottom: 1rem; }
+        p { margin-bottom: 2rem; opacity: 0.9; }
+
+        .card {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: var(--radius-md);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .option-btn {
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            border: 2px solid var(--btn-bg);
+            padding: 14px;
+            margin-bottom: 12px;
+            border-radius: var(--radius-md);
+            width: 100%;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 600;
+        }
+
+        .option-btn:hover, .option-btn:active {
+            background-color: var(--btn-bg);
+            color: var(--btn-text);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="screen-welcome" class="screen active">
+        <div class="card">
+            <h1 id="welcome-msg">Loading...</h1>
+            <p>Ready to test your logic and reasoning?</p>
+            <p>Your current Best Score: <strong id="best-score">-</strong></p>
+        </div>
+    </div>
+
+    <div id="screen-quiz" class="screen">
+        <div class="card">
+            <h1 id="question-text">Question</h1>
+            <div id="options-container"></div>
+            <p style="margin-top: 1rem; font-size: 0.875rem;" id="progress-text"></p>
+        </div>
+    </div>
+
+    <div id="screen-result" class="screen">
+        <div class="card">
+            <h1>Test Complete!</h1>
+            <p>Your IQ Score equivalent logic points:</p>
+            <h2 id="final-score" style="font-size: 3rem; color: var(--btn-bg); margin-bottom: 1rem;">0</h2>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Utilize full screen on mobile
+
+        // State Management
+        let questions = [];
+        let currentQuestionIndex = 0;
+        let answers = {}; // Map of question_id -> selected_index
+
+        const apiHeaders = {
+            'Content-Type': 'application/json',
+            'x-telegram-init-data': tg.initData || ''
+        };
+
+        const showScreen = (id) => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        };
+
+        async function initApp() {
+            if (!tg.initData) {
+                document.getElementById('welcome-msg').textContent = "Open within Telegram!";
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/me', { headers: apiHeaders });
+                const user = await res.json();
+                
+                // Safe DOM insertion preventing XSS
+                document.getElementById('welcome-msg').textContent = `Welcome, ${user.first_name}!`;
+                document.getElementById('best-score').textContent = user.best_score;
+
+                tg.MainButton.text = "START IQ TEST";
+                tg.MainButton.show();
+                tg.MainButton.onClick(startQuiz);
+            } catch (err) {
+                console.error("Initialization failed", err);
+            }
+        }
+
+        async function startQuiz() {
+            tg.MainButton.hide();
+            tg.MainButton.offClick(startQuiz);
+            
+            showScreen('screen-quiz');
+            document.getElementById('question-text').textContent = "Loading questions...";
+
+            const res = await fetch('/api/questions', { headers: apiHeaders });
+            questions = await res.json();
+            currentQuestionIndex = 0;
+            answers = {};
+
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            if (currentQuestionIndex >= questions.length) {
+                return submitQuiz();
+            }
+
+            const q = questions[currentQuestionIndex];
+            document.getElementById('question-text').textContent = q.question_text;
+            document.getElementById('progress-text').textContent = `Question ${currentQuestionIndex + 1} of ${questions.length}`;
+            
+            const container = document.getElementById('options-container');
+            container.innerHTML = ''; // Clear previous
+
+            q.options.forEach((optText, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = optText; // Prevents XSS natively
+                btn.onclick = () => handleAnswer(q.id, index);
+                container.appendChild(btn);
+            });
+        }
+
+        function handleAnswer(questionId, optionIndex) {
+            answers[questionId] = optionIndex;
+            currentQuestionIndex++;
+            renderQuestion();
+        }
+
+        async function submitQuiz() {
+            showScreen('screen-result');
+            document.getElementById('final-score').textContent = "...";
+
+            const res = await fetch('/api/submit', {
+                method: 'POST',
+                headers: apiHeaders,
+                body: JSON.stringify({ answers })
+            });
+            const result = await res.json();
+
+            document.getElementById('final-score').textContent = result.score;
+            
+            tg.MainButton.text = "CLOSE";
+            tg.MainButton.show();
+            tg.MainButton.onClick(() => tg.close());
+        }
+
+        // Bootstrap App
+        initApp();
+    </script>
+</body>
+</html>
