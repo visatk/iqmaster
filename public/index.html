@@ -2,211 +2,567 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>IQ Master Mini App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>IQ Master — Psychometric Intelligence Arena</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* Modern UI/UX: Custom properties, WCAG compliant contrast, fluid sizing */
         :root {
-            --bg-color: var(--tg-theme-bg-color, #f4f4f5);
-            --text-color: var(--tg-theme-text-color, #18181b);
-            --btn-bg: var(--tg-theme-button-color, #3b82f6);
-            --btn-text: var(--tg-theme-button-text-color, #ffffff);
-            --card-bg: var(--tg-theme-secondary-bg-color, #ffffff);
-            --radius-md: 12px;
-            --font-sans: system-ui, -apple-system, sans-serif;
+            --bg: var(--tg-theme-bg-color, #0f172a);
+            --secondary-bg: var(--tg-theme-secondary-bg-color, #1e293b);
+            --accent: var(--tg-theme-button-color, #38bdf8);
+            --accent-text: var(--tg-theme-button-text-color, #0f172a);
+            --text: var(--tg-theme-text-color, #f8fafc);
+            --hint: var(--tg-theme-hint-color, #94a3b8);
+            --surface: #1e293b;
+            --border: #334155;
+            --success: #10b981;
+            --radius-xl: 20px;
+            --radius-lg: 14px;
+            --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
 
         body {
-            font-family: var(--font-sans);
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            font-family: var(--font);
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
-            padding: 20px;
+            overflow-x: hidden;
+            padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom) 16px;
         }
 
-        .screen {
+        .view {
             display: none;
+            flex-direction: column;
+            flex: 1;
+            width: 100%;
+            max-width: 480px;
+            margin: 0 auto;
+            animation: viewFade 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .view.active {
+            display: flex;
+        }
+
+        @keyframes viewFade {
+            from { opacity: 0; transform: scale(0.98) translateY(4px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* Header Component Structure */
+        header {
+            padding: 24px 0 16px 0;
+            text-align: center;
+        }
+
+        .profile-container {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            padding: 20px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .score-badge {
+            background: linear-gradient(135deg, var(--accent), #0284c7);
+            color: var(--accent-text);
+            padding: 12px 20px;
+            border-radius: var(--radius-lg);
+            text-align: center;
+        }
+
+        .score-val {
+            font-size: 1.75rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .score-lbl {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            opacity: 0.9;
+        }
+
+        /* Leaderboard Component Structure */
+        .panel-title {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            color: var(--hint);
+            letter-spacing: 0.075em;
+            margin-bottom: 8px;
+            padding-left: 4px;
+            font-weight: 700;
+        }
+
+        .leaderboard-card {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            flex: 1;
+            margin-bottom: 24px;
+        }
+
+        .leaderboard-row {
+            display: flex;
+            align-items: center;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .leaderboard-row:last-child {
+            border-bottom: none;
+        }
+
+        .rank {
+            font-weight: 800;
+            width: 28px;
+            color: var(--hint);
+        }
+
+        .leaderboard-row:nth-child(1) .rank { color: #fbbf24; }
+        .leaderboard-row:nth-child(2) .rank { color: #cbd5e1; }
+        .leaderboard-row:nth-child(3) .rank { color: #b45309; }
+
+        .name {
+            flex: 1;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .iq-tag {
+            font-weight: 700;
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        /* Action Component Elements */
+        .btn {
+            background: var(--accent);
+            color: var(--accent-text);
+            border: none;
+            padding: 16px 24px;
+            border-radius: var(--radius-lg);
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: transform 0.1s ease;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Quiz Layout Context */
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .progress-track {
+            height: 6px;
+            background: var(--secondary-bg);
+            border-radius: 3px;
+            flex: 1;
+            margin: 0 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .timer-node {
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+            color: var(--hint);
+            background: var(--secondary-bg);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            border: 1px solid var(--border);
+        }
+
+        .question-card {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border);
+            padding: 24px;
+            border-radius: var(--radius-xl);
+            font-size: 1.2rem;
+            font-weight: 600;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+        }
+
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-node {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 16px 20px;
+            border-radius: var(--radius-lg);
+            text-align: left;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .option-node:active {
+            background: var(--border);
+            border-color: var(--hint);
+        }
+
+        /* Engine Metric Evaluation Layout */
+        .result-radial {
+            margin: 40px auto;
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: radial-gradient(var(--bg) 60%, transparent 61%), conic-gradient(var(--accent) 0%, var(--secondary-bg) 0%);
+            display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            flex: 1;
-            text-align: center;
-            animation: fadeIn 0.3s ease-in-out;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
         }
 
-        .screen.active { display: flex; }
-
-        h1 { font-size: 1.5rem; margin-bottom: 1rem; }
-        p { margin-bottom: 2rem; opacity: 0.9; }
-
-        .card {
-            background: var(--card-bg);
-            padding: 24px;
-            border-radius: var(--radius-md);
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-            width: 100%;
-            max-width: 400px;
+        .result-iq {
+            font-size: 3.5rem;
+            font-weight: 900;
+            line-height: 1;
+            background: linear-gradient(135deg, #f8fafc, var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        .option-btn {
-            background-color: var(--card-bg);
-            color: var(--text-color);
-            border: 2px solid var(--btn-bg);
-            padding: 14px;
-            margin-bottom: 12px;
-            border-radius: var(--radius-md);
-            width: 100%;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-weight: 600;
-        }
-
-        .option-btn:hover, .option-btn:active {
-            background-color: var(--btn-bg);
-            color: var(--btn-text);
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .result-label {
+            font-size: 0.75rem;
+            color: var(--hint);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            margin-top: 4px;
         }
     </style>
 </head>
 <body>
 
-    <div id="screen-welcome" class="screen active">
-        <div class="card">
-            <h1 id="welcome-msg">Loading...</h1>
-            <p>Ready to test your logic and reasoning?</p>
-            <p>Your current Best Score: <strong id="best-score">-</strong></p>
+    <!-- Context Module: Dashboard Arena -->
+    <div id="view-dashboard" class="view active">
+        <header>
+            <h1 style="font-size: 1.5rem; font-weight: 800;">IQ MASTER</h1>
+            <p style="color: var(--hint); font-size: 0.85rem; margin-top: 2px;">Psychometric Evaluation Matrix</p>
+        </header>
+
+        <div class="profile-container">
+            <div>
+                <div id="user-name" style="font-weight: 700; font-size: 1.1rem;">...</div>
+                <div id="user-meta" style="color: var(--hint); font-size: 0.8rem; margin-top: 4px;">0 Quizzes Completed</div>
+            </div>
+            <div class="score-badge">
+                <div id="user-iq" class="score-val">-</div>
+                <div class="score-lbl">Best IQ</div>
+            </div>
         </div>
+
+        <div class="panel-title">Global Standings</div>
+        <div class="leaderboard-card">
+            <div id="leaderboard-target" style="display:flex; flex-direction:column; min-height:100px;">
+                <!-- Dynamically updated pipeline items injection -->
+            </div>
+        </div>
+
+        <button class="btn" id="action-trigger-start">
+            <svg style="width:20px; height:20px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            INITIALIZE IQ TEST
+        </button>
     </div>
 
-    <div id="screen-quiz" class="screen">
-        <div class="card">
-            <h1 id="question-text">Question</h1>
-            <div id="options-container"></div>
-            <p style="margin-top: 1rem; font-size: 0.875rem;" id="progress-text"></p>
+    <!-- Context Module: Quiz Runtime Evaluation -->
+    <div id="view-quiz" class="view">
+        <div class="quiz-header">
+            <span id="quiz-index-tracker" style="font-weight:700; font-size:0.9rem; color:var(--hint);">1/5</span>
+            <div class="progress-track"><div id="quiz-progress-bar" class="progress-fill"></div></div>
+            <div id="quiz-timer" class="timer-node">05:00</div>
         </div>
+
+        <div id="quiz-question" class="question-card">...</div>
+        <div id="quiz-options" class="options-grid"></div>
     </div>
 
-    <div id="screen-result" class="screen">
-        <div class="card">
-            <h1>Test Complete!</h1>
-            <p>Your IQ Score equivalent logic points:</p>
-            <h2 id="final-score" style="font-size: 3rem; color: var(--btn-bg); margin-bottom: 1rem;">0</h2>
+    <!-- Context Module: Score Aggregation Metrics -->
+    <div id="view-result" class="view">
+        <header>
+            <h1 style="font-size: 1.5rem; font-weight: 800;">EVALUATION COMPLETE</h1>
+            <p style="color: var(--hint); font-size: 0.85rem; margin-top: 2px;">Psychometric Score Calculation Settled</p>
+        </header>
+
+        <div id="result-radial-node" class="result-radial">
+            <div id="result-iq-val" class="result-iq">-</div>
+            <div class="result-label">Index Ratio</div>
         </div>
+
+        <div class="profile-container" style="justify-content: center; text-align: center; margin-bottom: 32px;">
+            <p id="result-summary-text" style="font-size: 0.95rem; line-height: 1.4; font-weight: 500;"></p>
+        </div>
+
+        <button class="btn" id="action-trigger-close">
+            RETURN TO HUB
+        </button>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Utilize full screen on mobile
+        tg.ready();
+        tg.expand();
 
-        // State Management
-        let questions = [];
-        let currentQuestionIndex = 0;
-        let answers = {}; // Map of question_id -> selected_index
+        // State Architecture Storage Engine
+        let appState = {
+            user: null,
+            activeAttemptId: null,
+            questions: [],
+            currentIndex: 0,
+            answers: {},
+            timerInterval: null,
+            expirationTime: 0
+        };
 
-        const apiHeaders = {
+        const reqHeaders = {
             'Content-Type': 'application/json',
-            'x-telegram-init-data': tg.initData || ''
+            'X-Telegram-Init-Data': tg.initData || ''
         };
 
-        const showScreen = (id) => {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-        };
-
-        async function initApp() {
-            if (!tg.initData) {
-                document.getElementById('welcome-msg').textContent = "Open within Telegram!";
-                return;
+        // Navigation Engine Route Processor
+        function switchView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            
+            // Manage UI BackButton state behavior dynamically
+            if (viewId === 'view-quiz') {
+                tg.BackButton.show();
+            } else {
+                tg.BackButton.hide();
             }
+        }
 
+        tg.BackButton.onClick(() => {
+            if (confirm("Abandon active examination session? Progress will be lost.")) {
+                clearInterval(appState.timerInterval);
+                fetchUserMetrics();
+                switchView('view-dashboard');
+            }
+        });
+
+        // Sync local user profile metrics state from backend database
+        async function fetchUserMetrics() {
             try {
-                const res = await fetch('/api/me', { headers: apiHeaders });
+                const res = await fetch('/api/me', { headers: reqHeaders });
                 const user = await res.json();
-                
-                // Safe DOM insertion preventing XSS
-                document.getElementById('welcome-msg').textContent = `Welcome, ${user.first_name}!`;
-                document.getElementById('best-score').textContent = user.best_score;
+                appState.user = user;
 
-                tg.MainButton.text = "START IQ TEST";
-                tg.MainButton.show();
-                tg.MainButton.onClick(startQuiz);
+                document.getElementById('user-name').textContent = user.first_name;
+                document.getElementById('user-meta').textContent = `${user.total_quizzes || 0} Quizzes Settled`;
+                document.getElementById('user-iq').textContent = user.best_iq || '-';
+
+                await fetchLeaderboardStandings();
             } catch (err) {
-                console.error("Initialization failed", err);
+                console.error("Metric sync failure", err);
             }
         }
 
-        async function startQuiz() {
-            tg.MainButton.hide();
-            tg.MainButton.offClick(startQuiz);
-            
-            showScreen('screen-quiz');
-            document.getElementById('question-text').textContent = "Loading questions...";
+        // Fetch standings arrays and compile structural UI element trees
+        async function fetchLeaderboardStandings() {
+            const target = document.getElementById('leaderboard-target');
+            try {
+                const res = await fetch('/api/leaderboard', { headers: reqHeaders });
+                const list = await res.json();
 
-            const res = await fetch('/api/questions', { headers: apiHeaders });
-            questions = await res.json();
-            currentQuestionIndex = 0;
-            answers = {};
+                target.innerHTML = '';
+                if (list.length === 0) {
+                    target.innerHTML = `<div style="padding:24px; text-align:center; color:var(--hint); font-size:0.9rem;">No metric data registered yet.</div>`;
+                    return;
+                }
 
-            renderQuestion();
+                list.forEach((row, i) => {
+                    const el = document.createElement('div');
+                    el.className = 'leaderboard-row';
+                    el.innerHTML = `
+                        <span class="rank">${i + 1}</span>
+                        <span class="name">${escapeHtml(row.first_name)}</span>
+                        <span class="iq-tag">IQ ${row.best_iq}</span>
+                    `;
+                    target.appendChild(el);
+                });
+            } catch {
+                target.innerHTML = `<div style="padding:24px; text-align:center; color:var(--hint); font-size:0.9rem;">Standings unavailable.</div>`;
+            }
         }
 
-        function renderQuestion() {
-            if (currentQuestionIndex >= questions.length) {
-                return submitQuiz();
+        // Initialize state session entry configuration
+        async function processQuizInitialization() {
+            try {
+                const res = await fetch('/api/quiz/start', { method: 'POST', headers: reqHeaders });
+                if (!res.ok) throw new Error("Initialization rejected.");
+                
+                const data = await res.json();
+                
+                appState.activeAttemptId = data.attemptId;
+                appState.questions = data.questions;
+                appState.currentIndex = 0;
+                appState.answers = {};
+                appState.expirationTime = data.expiresAt;
+
+                switchView('view-quiz');
+                initiateCountdownTimer();
+                renderActiveQuestion();
+            } catch (e) {
+                alert("Failed to allocate secure execution context. Retrying.");
             }
+        }
 
-            const q = questions[currentQuestionIndex];
-            document.getElementById('question-text').textContent = q.question_text;
-            document.getElementById('progress-text').textContent = `Question ${currentQuestionIndex + 1} of ${questions.length}`;
-            
-            const container = document.getElementById('options-container');
-            container.innerHTML = ''; // Clear previous
+        function initiateCountdownTimer() {
+            clearInterval(appState.timerInterval);
+            const display = document.getElementById('quiz-timer');
 
-            q.options.forEach((optText, index) => {
+            appState.timerInterval = setInterval(() => {
+                const remaining = appState.expirationTime - Date.now();
+                if (remaining <= 0) {
+                    clearInterval(appState.timerInterval);
+                    processQuizSettlement();
+                    alert("Temporal session expired. Evaluating partial submissions.");
+                    return;
+                }
+
+                const totalSecs = Math.floor(remaining / 1000);
+                const m = Math.floor(totalSecs / 60).toString().padStart(2, '0');
+                const s = (totalSecs % 60).toString().padStart(2, '0');
+                display.textContent = `${m}:${s}`;
+            }, 1000);
+        }
+
+        function renderActiveQuestion() {
+            const q = appState.questions[appState.currentIndex];
+            const total = appState.questions.length;
+
+            document.getElementById('quiz-index-tracker').textContent = `${appState.currentIndex + 1}/${total}`;
+            document.getElementById('quiz-progress-bar').style.width = `${((appState.currentIndex) / total) * 100}%`;
+            document.getElementById('quiz-question').textContent = q.question_text;
+
+            const optionsTarget = document.getElementById('quiz-options');
+            optionsTarget.innerHTML = '';
+
+            q.options.forEach((opt, index) => {
                 const btn = document.createElement('button');
-                btn.className = 'option-btn';
-                btn.textContent = optText; // Prevents XSS natively
-                btn.onclick = () => handleAnswer(q.id, index);
-                container.appendChild(btn);
+                btn.className = 'option-node';
+                btn.textContent = opt;
+                btn.onclick = () => registerUserSelection(q.id, index);
+                optionsTarget.appendChild(btn);
             });
         }
 
-        function handleAnswer(questionId, optionIndex) {
-            answers[questionId] = optionIndex;
-            currentQuestionIndex++;
-            renderQuestion();
+        function registerUserSelection(questionId, selectedIndex) {
+            appState.answers[questionId] = selectedIndex;
+            appState.currentIndex++;
+
+            if (appState.currentIndex < appState.questions.length) {
+                renderActiveQuestion();
+            } else {
+                clearInterval(appState.timerInterval);
+                processQuizSettlement();
+            }
         }
 
-        async function submitQuiz() {
-            showScreen('screen-result');
-            document.getElementById('final-score').textContent = "...";
+        async function processQuizSettlement() {
+            document.getElementById('quiz-progress-bar').style.width = '100%';
+            try {
+                const res = await fetch('/api/quiz/submit', {
+                    method: 'POST',
+                    headers: reqHeaders,
+                    body: JSON.stringify({
+                        attemptId: appState.activeAttemptId,
+                        answers: appState.answers
+                    })
+                });
 
-            const res = await fetch('/api/submit', {
-                method: 'POST',
-                headers: apiHeaders,
-                body: JSON.stringify({ answers })
-            });
-            const result = await res.json();
+                const summary = await res.json();
+                
+                // Conic gradient visual ring feedback setting representation
+                const percentage = Math.min(100, Math.max(0, ((summary.iq - 70) / 90) * 100));
+                document.getElementById('result-radial-node').style.background = `radial-gradient(var(--bg) 60%, transparent 61%), conic-gradient(var(--accent) ${percentage}%, var(--secondary-bg) ${percentage}%)`;
+                document.getElementById('result-iq-val').textContent = summary.iq;
 
-            document.getElementById('final-score').textContent = result.score;
-            
-            tg.MainButton.text = "CLOSE";
-            tg.MainButton.show();
-            tg.MainButton.onClick(() => tg.close());
+                let diagnosis = "Average computational analytical capability.";
+                if (summary.iq > 130) diagnosis = "Genius level cognitive spatial orientation capacity.";
+                else if (summary.iq > 115) diagnosis = "High superior analytical reasoning quotient.";
+                else if (summary.iq < 90) diagnosis = "Divergent process processing speed mapping index.";
+
+                document.getElementById('result-summary-text').textContent = diagnosis;
+                switchView('view-result');
+            } catch {
+                alert("Network connectivity interruption dropped evaluation token.");
+                switchView('view-dashboard');
+                fetchUserMetrics();
+            }
         }
 
-        // Bootstrap App
-        initApp();
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // Action Bindings Registration Setup Block
+        document.getElementById('action-trigger-start').onclick = processQuizInitialization;
+        document.getElementById('action-trigger-close').onclick = () => {
+            fetchUserMetrics();
+            switchView('view-dashboard');
+        };
+
+        // Initialize Core Lifecycles
+        fetchUserMetrics();
     </script>
 </body>
 </html>
