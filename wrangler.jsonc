@@ -23,8 +23,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "exch",
-      "database_id": "8c078e34-9506-4a3a-8b4b-671c06a382e1"
+      "database_name": "iqtest",
+      "database_id": "b479c151-7706-45a7-bd46-49cea298df69"
     }
   ]
 }
