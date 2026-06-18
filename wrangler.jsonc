@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  "name": "unit",
+  "main": "src/index.ts",
+
+  "compatibility_date": "2026-05-30",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+
+  "assets": {
+    "directory": "./public"
+  },
+
+  "observability": {
+    "enabled": true
+  },
+
+  "upload_source_maps": true,
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "prod",
+      "database_id": "51ac70cb-53c6-4920-8588-e8f19518edc5"
+    }
+  ]
+}
