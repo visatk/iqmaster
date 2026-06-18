@@ -60,6 +60,51 @@ async function verifyTelegramSignature(initData: string, botToken: string): Prom
 	}
 }
 
+// POST /webhook - Handles incoming Telegram Bot updates
+app.post('/webhook', async (c) => {
+	const update = await c.req.json<any>();
+	
+	if (update.message && update.message.text) {
+		const text = update.message.text;
+		const chatId = update.message.chat.id;
+
+		if (text.startsWith('/start') || text.startsWith('/help')) {
+			// Construct the Web App URL from the request origin
+			const origin = new URL(c.req.url).origin;
+			
+			const messageText = `🧠 *Welcome to IQ Master!* 🧠\n\nTest your cognitive abilities with our premium psychometric assessment.\n\nClick the button below to launch the Mini App and discover your IQ!`;
+			
+			const payload = {
+				chat_id: chatId,
+				text: messageText,
+				parse_mode: 'Markdown',
+				reply_markup: {
+					inline_keyboard: [
+						[
+							{
+								text: "🚀 Launch IQ Master",
+								web_app: { url: origin }
+							}
+						]
+					]
+				}
+			};
+
+			c.executionCtx.waitUntil(
+				fetch(`https://api.telegram.org/bot${c.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify(payload)
+				})
+			);
+		}
+	}
+
+	return c.text('OK');
+});
+
 // Global Middleware implementing explicit API perimeter isolation
 app.use('/api/*', async (c, next) => {
 	const initData = c.req.header('X-Telegram-Init-Data');
