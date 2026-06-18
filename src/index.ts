@@ -81,29 +81,17 @@ app.get('/api/me', async (c) => {
 	const tgUser = c.get('tgUser');
 	const idStr = tgUser.id.toString();
 
-	let user = await c.env.DB.prepare('SELECT * FROM users WHERE tg_id = ?').bind(idStr).first();
-
-	if (!user) {
-		await c.env.DB.prepare(
-			'INSERT INTO users (tg_id, username, first_name, language_code) VALUES (?, ?, ?, ?)'
-		)
-			.bind(idStr, tgUser.username || null, tgUser.first_name, tgUser.language_code || null)
-			.run();
-
-		user = {
-			tg_id: idStr,
-			username: tgUser.username || null,
-			first_name: tgUser.first_name,
-			language_code: tgUser.language_code || null,
-			best_iq: 0,
-			total_quizzes: 0
-		};
-	} else {
-		// Update profile properties fluidly if details drifted on Telegram's side
-		await c.env.DB.prepare('UPDATE users SET username = ?, first_name = ?, updated_at = CURRENT_TIMESTAMP WHERE tg_id = ?')
-			.bind(tgUser.username || null, tgUser.first_name, idStr)
-			.run();
-	}
+	const user = await c.env.DB.prepare(`
+		INSERT INTO users (tg_id, username, first_name, language_code) 
+		VALUES (?, ?, ?, ?)
+		ON CONFLICT(tg_id) DO UPDATE SET 
+			username = excluded.username, 
+			first_name = excluded.first_name, 
+			updated_at = CURRENT_TIMESTAMP
+		RETURNING *
+	`)
+		.bind(idStr, tgUser.username || null, tgUser.first_name, tgUser.language_code || null)
+		.first();
 
 	return c.json(user);
 });
@@ -115,16 +103,21 @@ app.post('/api/quiz/start', async (c) => {
 	
 	// Build a progressive 10-question matrix across difficulty tiers
 	const queries = [
-		c.env.DB.prepare('SELECT id FROM questions WHERE difficulty = 1 ORDER BY RANDOM() LIMIT 3'),
-		c.env.DB.prepare('SELECT id FROM questions WHERE difficulty = 2 ORDER BY RANDOM() LIMIT 3'),
-		c.env.DB.prepare('SELECT id FROM questions WHERE difficulty = 3 ORDER BY RANDOM() LIMIT 2'),
-		c.env.DB.prepare('SELECT id FROM questions WHERE difficulty = 4 ORDER BY RANDOM() LIMIT 1'),
-		c.env.DB.prepare('SELECT id FROM questions WHERE difficulty = 5 ORDER BY RANDOM() LIMIT 1')
+		c.env.DB.prepare('SELECT id, category, question_text, options FROM questions WHERE difficulty = 1 ORDER BY RANDOM() LIMIT 3'),
+		c.env.DB.prepare('SELECT id, category, question_text, options FROM questions WHERE difficulty = 2 ORDER BY RANDOM() LIMIT 3'),
+		c.env.DB.prepare('SELECT id, category, question_text, options FROM questions WHERE difficulty = 3 ORDER BY RANDOM() LIMIT 2'),
+		c.env.DB.prepare('SELECT id, category, question_text, options FROM questions WHERE difficulty = 4 ORDER BY RANDOM() LIMIT 1'),
+		c.env.DB.prepare('SELECT id, category, question_text, options FROM questions WHERE difficulty = 5 ORDER BY RANDOM() LIMIT 1')
 	];
 	
 	const batchedResults = await c.env.DB.batch(queries);
-	const allSelected = batchedResults.flatMap((res: any) => res.results);
-	const questionIds = allSelected.map((r: any) => r.id);
+	const orderedQuestions = batchedResults.flatMap((res: any) => res.results).map((q: any) => ({
+		id: q.id,
+		category: q.category,
+		question_text: q.question_text,
+		options: JSON.parse(q.options)
+	}));
+	const questionIds = orderedQuestions.map((q: any) => q.id);
 
 	const now = Date.now();
 	const durationLimit = 10 * 60 * 1000; // Hard bounded window allocation (10 minutes for 10 questions)
@@ -135,25 +128,6 @@ app.post('/api/quiz/start', async (c) => {
 	)
 		.bind(attemptId, tgUser.id.toString(), JSON.stringify(questionIds), JSON.stringify({}), now, expiresAt)
 		.run();
-
-	// Fetch structural items completely bypassing answer key exposure to client
-	const placeholders = questionIds.map(() => '?').join(',');
-	const fetchedQuestions = await c.env.DB.prepare(
-		`SELECT id, category, question_text, options FROM questions WHERE id IN (${placeholders})`
-	)
-		.bind(...questionIds)
-		.all();
-
-	// Ensure the structural payload maps precisely back to the generated sequence
-	const orderedQuestions = questionIds.map((id) => {
-		const q = fetchedQuestions.results.find((item: any) => item.id === id) as any;
-		return {
-			id: q.id,
-			category: q.category,
-			question_text: q.question_text,
-			options: JSON.parse(q.options)
-		};
-	});
 
 	return c.json({ attemptId, questions: orderedQuestions, expiresAt });
 });
@@ -207,13 +181,15 @@ app.post('/api/quiz/submit', async (c) => {
 	const accuracyRatio = earnedPoints / (aggregatePossiblePoints || 1);
 	const computedIq = Math.round(70 + (accuracyRatio * 80));
 
-	// Save verification record atomic modifications
-	await c.env.DB.batch([
-		c.env.DB.prepare('UPDATE quiz_attempts SET answers = ?, score = ?, is_completed = 1 WHERE id = ?')
-			.bind(JSON.stringify(payload.answers), computedIq, payload.attemptId),
-		c.env.DB.prepare('UPDATE users SET total_quizzes = total_quizzes + 1, best_iq = MAX(best_iq, ?), updated_at = CURRENT_TIMESTAMP WHERE tg_id = ?')
-			.bind(computedIq, tgUser.id.toString())
-	]);
+	// Save verification record atomic modifications asynchronously
+	c.executionCtx.waitUntil(
+		c.env.DB.batch([
+			c.env.DB.prepare('UPDATE quiz_attempts SET answers = ?, score = ?, is_completed = 1 WHERE id = ?')
+				.bind(JSON.stringify(payload.answers), computedIq, payload.attemptId),
+			c.env.DB.prepare('UPDATE users SET total_quizzes = total_quizzes + 1, best_iq = MAX(best_iq, ?), updated_at = CURRENT_TIMESTAMP WHERE tg_id = ?')
+				.bind(computedIq, tgUser.id.toString())
+		])
+	);
 
 	return c.json({
 		iq: computedIq,
